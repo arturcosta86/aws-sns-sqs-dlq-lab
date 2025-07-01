@@ -100,25 +100,21 @@ Para que o Tópico SNS possa enviar mensagens para a Fila SQS, uma política de 
 As capturas de tela a seguir comprovam a configuração e o funcionamento da arquitetura.
 
 ### 1. Criação da Fila de Mensagens Mortas (DLQ)
-* **Arquivo:** `Print das Filas SQS (DLQ - criada - Artur Costa.jpeg)`
 * **Descrição:** Evidência da criação da fila `minha-dlq-lab-arturcosta`, que servirá como repositório para as mensagens que falharam no processamento.
 
-![Criação da DLQ](Print%20das%20Filas%20SQS%20(DLQ%20-%20criada%20-%20%20Artur%20Costa.jpeg))
+![Criação da DLQ](https://github.com/arturcosta86/aws-sns-sqs-dlq-lab/blob/main/Print%20das%20Filas%20SQS%20(DLQ%20-%20criada%20-%20%20Artur%20Costa.jpeg)
 
 ### 2. Configuração da Fila Principal com a Política de Redirecionamento
-* **Arquivo:** `Print das Filas SQS (principal) - Artur Costa.jpeg`
 * **Descrição:** A fila `minha-fila-principal-lab-arturcosta` configurada com a Política de Redirecionamento (Redrive Policy). Note que ela aponta para a DLQ e o "Número máximo de recebimentos" está definido como **3**.
 
-![Configuração da Fila Principal](Print%20das%20Filas%20SQS%20(principal)%20-%20Artur%20Costa.jpeg)
+![Configuração da Fila Principal]([Print%20das%20Filas%20SQS%20(principal)%20-%20Artur%20Costa.jpeg](https://github.com/arturcosta86/aws-sns-sqs-dlq-lab/blob/main/Print%20das%20Filas%20SQS%20(principal)%20-%20Artur%20Costa.jpeg))
 
 ### 3. Inscrição da Fila SQS no Tópico SNS
-* **Arquivo:** `Print do Tópico SNS - Artur Costa.jpeg`
 * **Descrição:** Detalhes da assinatura (subscription) no tópico SNS, mostrando que a fila SQS principal está inscrita como um endpoint, pronta para receber mensagens.
 
-![Inscrição SQS no SNS](Print%20do%20Tópico%20SNS%20-%20Artur%20Costa.jpeg)
+![Inscrição SQS no SNS]([Print%20do%20Tópico%20SNS%20-%20Artur%20Costa.jpeg](https://github.com/arturcosta86/aws-sns-sqs-dlq-lab/blob/main/Print%20do%20T%C3%B3pico%20SNS%20-%20Artur%20Costa.jpeg))
 
 ### 4. Resultado Final: Mensagem na DLQ
-* **Arquivo:** `Print das Filas SQS (DLQ) - com a mensagem não processada - Artur Costa.jpeg`
 * **Descrição:** Prova final do funcionamento da arquitetura. Após simular falhas de processamento na fila principal, a mensagem foi movida com sucesso para a DLQ, onde pode ser inspecionada. O "Número de recebimentos" (Receive Count) maior que 3 confirma que a política de redirecionamento foi acionada.
 
-![Mensagem na DLQ](Print%20das%20Filas%20SQS%20(DLQ)%20-%20com%20a%20mensagem%20não%20processada%20-%20%20Artur%20Costa.jpeg)
+![Mensagem na DLQ](https://github.com/arturcosta86/aws-sns-sqs-dlq-lab/blob/main/Print%20das%20Filas%20SQS%20(DLQ)%20-%20com%20a%20mensagem%20n%C3%A3o%20processada%20-%20%20Artur%20Costa.jpeg)
