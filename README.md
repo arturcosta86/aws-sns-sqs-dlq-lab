@@ -1,76 +1,124 @@
-# Projeto: Jogo de Adivinhação com Arquitetura Serverless na AWS
+# Laboratório: Tópico SNS e Filas SQS com Dead-Letter Queue (DLQ)
 
-Este repositório documenta a criação e implementação de uma aplicação web interativa, o "Jogo de Adivinhação", utilizando uma arquitetura 100% serverless na AWS. Este projeto foi desenvolvido como parte de um laboratório prático da **Escola da Nuvem**.
+Este repositório documenta a implementação de um fluxo de mensagens resiliente na AWS utilizando SNS, SQS e uma Dead-Letter Queue (DLQ). O projeto foi realizado como parte dos estudos para a certificação **AWS Certified Developer - Associate** na Escola da Nuvem.
+
+O objetivo é demonstrar uma arquitetura de microsserviços desacoplada, onde eventos são processados de forma assíncrona com um mecanismo robusto para tratamento de falhas.
 
 **Instrutor:** Tomas Alric ([@TomasAlric](https://github.com/TomasAlric/TomasAlric))
 **Aluno:** Artur Costa ([@arturcosta86](https://github.com/arturcosta86))
 
-## 🎯 Visão Geral do Projeto
+---
 
-O objetivo foi construir uma aplicação web completa, desde o backend até o frontend, utilizando serviços gerenciados da AWS para evitar a necessidade de gerenciar servidores. A aplicação permite que o usuário tente adivinhar um número entre 1 e 10, com o backend processando o palpite e retornando o resultado.
+## 🎯 Objetivos do Laboratório
+
+* Criar e configurar uma fila SQS para atuar como Dead-Letter Queue (DLQ).
+* Criar uma fila SQS Padrão (principal) e configurá-la para usar a DLQ através de uma Política de Redirecionamento (Redrive Policy).
+* Criar um tópico SNS Padrão para publicar eventos.
+* Inscrever a fila SQS principal no tópico SNS para receber as mensagens.
+* Testar o fluxo de mensagens e simular uma falha de processamento para observar a mensagem sendo enviada para a DLQ.
 
 ---
 
-## 🛠️ Arquitetura e Serviços Utilizados
+## 🛠️ Arquitetura e Fluxo de Mensagens
 
-A solução integra três serviços principais da AWS de forma desacoplada:
+A solução implementa um padrão de arquitetura comum para sistemas orientados a eventos, garantindo desacoplamento e tolerância a falhas.
 
-1.  **Amazon S3:**
-    * **Função:** Hospedagem do website estático (`index.html`).
-    * **Detalhes:** O S3 foi configurado para servir o conteúdo da aplicação (HTML, CSS e JavaScript) publicamente na internet.
+O diagrama abaixo ilustra o fluxo:
 
-2.  **AWS Lambda:**
-    * **Função:** Backend da aplicação (lógica do jogo).
-    * **Detalhes:** Uma função Python (`lambda_function.py`) que gera um número aleatório, recebe o palpite do usuário via evento do API Gateway e retorna uma resposta em JSON.
+```
++-------------------+      +-----------------+      +-----------------------+
+|  Publicador de    |----->|   Tópico SNS    |----->|  Fila SQS Principal   |
+|    Mensagens      |      | (meu-topico-lab)|      | (minha-fila-principal)|
++-------------------+      +-----------------+      +-----------+-----------+
+                                                                |
+                                                                | 1. Consumidor tenta
+                                                                |    processar
+                                                                V
+                                                        +-------+-------+
+                                                        |   Falha no      |
+                                                        | Processamento?  |
+                                                        +-------+-------+
+                                                                | (Sim, após 3 tentativas)
+                                                                | Redrive Policy
+                                                                V
+                                                        +-----------------------+
+                                                        | Fila Dead-Letter (DLQ)|
+                                                        |   (minha-dlq-lab)     |
+                                                        +-----------------------+
+```
 
-3.  **Amazon API Gateway:**
-    * **Função:** Ponto de entrada (endpoint) para o backend.
-    * **Detalhes:** Uma API RESTful HTTP foi criada com uma rota `GET /jogo`. Essa rota é integrada à função Lambda, passando os parâmetros da requisição e expondo a lógica do backend de forma segura e gerenciável. O CORS foi configurado para permitir que o frontend hospedado no S3 possa chamar a API.
+**Fluxo Detalhado:**
 
-![Arquitetura da Solução](URL_PARA_UM_DIAGRAMA_SIMPLES_SE_TIVER) ---
+1.  Um evento é publicado em um **Tópico SNS**.
+2.  O SNS envia uma cópia da mensagem para a **Fila SQS Principal** que está inscrita no tópico.
+3.  Um consumidor (não simulado no lab) tenta processar a mensagem da Fila Principal.
+4.  Se o consumidor falhar em processar e excluir a mensagem repetidamente (3 vezes, conforme configurado na Redrive Policy), a política é acionada.
+5.  A mensagem é movida para a **Fila de Mensagens Mortas (DLQ)** para análise posterior, evitando o bloqueio do processamento de outras mensagens.
 
-## 🚀 Demonstração
+---
 
-O vídeo abaixo mostra o site em funcionamento, com o usuário interagindo e recebendo as respostas processadas pela arquitetura serverless.
+## 📄 Política de Acesso da Fila SQS (Código)
 
-https://github.com/arturcosta86/aws-serverless-guessing-game/assets/103693439/208889aa-5561-455b-80a5-87bd754b5dfd
+Para que o Tópico SNS possa enviar mensagens para a Fila SQS, uma política de acesso baseada em recursos é necessária na fila principal. Abaixo está o modelo da política em JSON utilizada.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Id": "__default_policy_ID",
+  "Statement": [
+    {
+      "Sid": "__owner_statement",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::<COLE AQUI SEU ID CONTA DA AWS (12 DÍGITOS)>:root"
+      },
+      "Action": "SQS:*",
+      "Resource": "<COLE AQUI O ARN DA SUA FILA PRINCIPAL>"
+    },
+    {
+      "Sid": "Allow-SNS-SendMessage",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "sns.amazonaws.com"
+      },
+      "Action": "sqs:SendMessage",
+      "Resource": "<COLE AQUI O ARN DA SUA FILA PRINCIPAL>",
+      "Condition": {
+        "ArnEquals": {
+          "aws:SourceArn": "< COLE AQUI O ARN DO SEU TÓPICO SNS >"
+        }
+      }
+    }
+  ]
+}
+```
 
 ---
 
 ## ✅ Evidências da Implementação
 
-A seguir estão as capturas de tela que comprovam a configuração de cada componente da solução na AWS.
+As capturas de tela a seguir comprovam a configuração e o funcionamento da arquitetura.
 
-**1. Bucket S3 Criado**
-* **Arquivo:** `Print - Bucket S3 - Artur Costa.jpeg`
-* **Descrição:** Criação do bucket `s3-website-arturcosta` para hospedar os arquivos do frontend.
+### 1. Criação da Fila de Mensagens Mortas (DLQ)
+* **Arquivo:** `Print das Filas SQS (DLQ - criada - Artur Costa.jpeg)`
+* **Descrição:** Evidência da criação da fila `minha-dlq-lab-arturcosta`, que servirá como repositório para as mensagens que falharam no processamento.
 
-![Bucket S3](Print%20-%20Bucket%20S3%20-%20Artur%20Costa.jpeg)
+![Criação da DLQ](Print%20das%20Filas%20SQS%20(DLQ%20-%20criada%20-%20%20Artur%20Costa.jpeg))
 
-**2. Função Lambda com a Lógica do Jogo**
-* **Arquivo:** `Print - Função Lambda - Artur Costa.jpeg`
-* **Descrição:** Configuração da função `LambdaGame-arturcosta` com o código Python que implementa a lógica do jogo.
+### 2. Configuração da Fila Principal com a Política de Redirecionamento
+* **Arquivo:** `Print das Filas SQS (principal) - Artur Costa.jpeg`
+* **Descrição:** A fila `minha-fila-principal-lab-arturcosta` configurada com a Política de Redirecionamento (Redrive Policy). Note que ela aponta para a DLQ e o "Número máximo de recebimentos" está definido como **3**.
 
-![Função Lambda](Print%20-%20Função%20Lambda%20-%20Artur%20Costa.jpeg)
+![Configuração da Fila Principal](Print%20das%20Filas%20SQS%20(principal)%20-%20Artur%20Costa.jpeg)
 
-**3. API Gateway com a Rota `/jogo`**
-* **Arquivo:** `Print - API Gateway - Artur Costa.jpeg`
-* **Descrição:** Criação da API e da rota `GET /jogo` para expor a função Lambda ao mundo externo.
+### 3. Inscrição da Fila SQS no Tópico SNS
+* **Arquivo:** `Print do Tópico SNS - Artur Costa.jpeg`
+* **Descrição:** Detalhes da assinatura (subscription) no tópico SNS, mostrando que a fila SQS principal está inscrita como um endpoint, pronta para receber mensagens.
 
-![API Gateway](Print%20-%20API%20Gateway%20-%20Artur%20Costa.jpeg)
+![Inscrição SQS no SNS](Print%20do%20Tópico%20SNS%20-%20Artur%20Costa.jpeg)
 
----
+### 4. Resultado Final: Mensagem na DLQ
+* **Arquivo:** `Print das Filas SQS (DLQ) - com a mensagem não processada - Artur Costa.jpeg`
+* **Descrição:** Prova final do funcionamento da arquitetura. Após simular falhas de processamento na fila principal, a mensagem foi movida com sucesso para a DLQ, onde pode ser inspecionada. O "Número de recebimentos" (Receive Count) maior que 3 confirma que a política de redirecionamento foi acionada.
 
-## 🔧 Como Replicar
-
-1.  **Backend (Lambda):** Crie uma função Lambda com runtime Python e adicione o código do arquivo `lambda_function.py`.
-2.  **API (API Gateway):** Crie uma API HTTP, adicione uma rota `GET /jogo` e integre-a com a função Lambda criada no passo anterior. Configure o CORS para permitir requisições de qualquer origem (`*`).
-3.  **Frontend (S3):**
-    * Copie a URL de invocação da sua API Gateway.
-    * Edite o arquivo `index.html` e substitua a URL da variável `url` pela sua.
-    * Crie um bucket S3 com um nome único globalmente.
-    * Desabilite o "Bloqueio de todo o acesso público" nas permissões do bucket.
-    * Adicione uma política de bucket para permitir a ação `s3:GetObject` para todos (`Principal: "*"`).
-    * Habilite a "Hospedagem de site estático" nas propriedades do bucket, definindo `index.html` como o documento de índice.
-    * Faça o upload do arquivo `index.html` modificado para o bucket.
-4.  **Acessar:** Abra o endpoint do site estático do S3 em seu navegador e jogue!
+![Mensagem na DLQ](Print%20das%20Filas%20SQS%20(DLQ)%20-%20com%20a%20mensagem%20não%20processada%20-%20%20Artur%20Costa.jpeg)
