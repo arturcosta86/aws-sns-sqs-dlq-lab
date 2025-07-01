@@ -2,7 +2,7 @@
 
 Este repositório documenta a criação e implementação de uma aplicação web interativa, o "Jogo de Adivinhação", utilizando uma arquitetura 100% serverless na AWS. Este projeto foi desenvolvido como parte de um laboratório prático da **Escola da Nuvem**.
 
-**Instrutor:** Tomas Alric
+**Instrutor:** Tomas Alric ([@TomasAlric](https://github.com/TomasAlric/TomasAlric))
 **Aluno:** Artur Costa ([@arturcosta86](https://github.com/arturcosta86))
 
 ## 🎯 Visão Geral do Projeto
